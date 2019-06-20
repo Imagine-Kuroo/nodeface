@@ -1,10 +1,16 @@
 {
     "name": "nodeface",
     "script": "./bin/www",
+    "watch": [
+        "bin",
+        "routes",
+        "app.js"
+    ],
     "ignore_watch": [
         "node_modules",
         "logs"
     ],
+    "log_date_format" : "YYYY-MM-DD HH:mm Z",
     "error_file": "./logs/app-err.log",
     "out_file": "./logs/app-out.log",
     "env": {
