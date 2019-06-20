@@ -1,6 +1,6 @@
 {
     "name": "nodeface",
-    "script": "./app.js",
+    "script": "./bin/www",
     "ignore_watch": [
         "node_modules",
         "logs"
