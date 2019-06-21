@@ -1,6 +1,6 @@
 {
     "name": "nodeface",
-    "script": "./bin/www",
+    "script": "bin/www",
     "watch": [
         "bin",
         "routes",
