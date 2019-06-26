@@ -3,14 +3,10 @@ const url = require('url')
 const http = require('http')
 const sizeOf = require('image-size')
 
-// const accessKey = '.......';
-// const secretKey = '.......';
-// const qiniu_bucket = '.......';
-// const qiniu_file_hostname =  '.......';
-const accessKey = 'C8Afm23jFmEVHo26esLEAR-bJT3v2X16cD_XTn42';
-const secretKey = 'wetyVbKOTZMGsGybGstx1raIk6Qa54osWJakKL9b';
-const qiniu_bucket = 'shizhi';
-const qiniu_file_hostname = 'http://omxx7cyms.bkt.clouddn.com';
+const accessKey = '.......';
+const secretKey = '.......';
+const qiniu_bucket = '.......';
+const qiniu_file_hostname =  '.......';
 
 // mac鉴权 && 构建 BucketManager对象
 const mac = new qiniu.auth.digest.Mac(accessKey, secretKey);
@@ -18,27 +14,83 @@ var config = new qiniu.conf.Config();
 config.zone = qiniu.zone.Zone_z0;
 const bucketManager = new qiniu.rs.BucketManager(mac, config);
 
-var save2Qiniu = {
-    qiniuUpload: function (resUrl) {
+var save2Qiniu = function (req, res, next) {
+    let resObj = {
+        errno: 0,
+        message: '',
+        data: []
+    }
+    let bodyObj = req.body;
+    let links = bodyObj.links;
 
-        this.getImageType(resUrl).then(res => {
-            var key = this.timestamp() + '.' + res.type
-            bucketManager.fetch(resUrl, qiniu_bucket, key, function (err, respBody, respInfo) {
-                if (err) {
-                    console.log(err);
-                } else {
-                    if (respInfo.statusCode == 200) {
-                        console.log(`转存链接  === > ${qiniu_file_hostname}/${respBody.key}`)
-                        // console.log(`${respBody.key} \r\n ${respBody.hash} \r\n ${respBody.fsize} \r\n ${respBody.mimeType}`);
+    if (!links || links.length == 0) {
+        resObj = {
+            errno: 0,
+            message: '参数不能为空',
+            data: []
+        }
+    } else {
+        let linkArr = links.split(',,');
+        let promiseArr = [];
+        for (let i in linkArr) {
+            let linkStr = qUpload.init(linkArr[i]);
+            promiseArr.push(qUpload.qiniuUpload(linkStr))
+        }
+        Promise.all(promiseArr).then(resolve => {
+            resObj = {
+                errno: 0,
+                message: '转存成功',
+                data: resolve
+            }
+            res.result = resObj
+            next()
+        }, reject => {
+            resObj = {
+                errno: 1,
+                message: '转存失败',
+                data: reject
+            }
+            res.result = resObj
+            next()
+        }).catch(err => {
+            resObj = {
+                errno: 2,
+                message: '转存报错',
+                data: err
+            }
+            res.result = resObj
+            next()
+        })
+    }
+}
+
+var qUpload = {
+    qiniuUpload: function (resUrl) {
+        return new Promise((resolve, reject) => {
+            this.getImageType(resUrl).then(res => {
+                var key = this.timestamp() + '.' + res.type
+                bucketManager.fetch(resUrl, qiniu_bucket, key, function (err, respBody, respInfo) {
+                    if (err) {
+                        console.log('getImageType -- > ', err);
+                        throw new Error(err)
                     } else {
-                        console.log(respInfo.statusCode);
-                        console.log(respBody);
+                        if (respInfo.statusCode == 200) {
+                            // console.log(`${respBody.key} \r\n ${respBody.hash} \r\n ${respBody.fsize} \r\n ${respBody.mimeType}`);
+                            let url = qiniu_file_hostname + '/' + respBody.key
+                            console.log(`转存链接  === > ${url}`)
+                            resolve(url)
+                        } else {
+                            let errObj = {
+                                statusCode: respInfo.statusCode,
+                                resBody: respBody
+                            }
+                            reject(errObj)
+                        }
                     }
-                }
-            });
+                });
+            })
         })
     },
-
     getImageType: function (resUrl) {
         var options = url.parse(resUrl);
         return new Promise((resolve, reject) => {
@@ -63,14 +115,13 @@ var save2Qiniu = {
         var h = (now.getHours() < 10 ? '0' + now.getHours() : now.getHours());
         var m = (now.getMinutes() < 10 ? '0' + now.getMinutes() : now.getMinutes());
         var s = (now.getSeconds() < 10 ? '0' + now.getSeconds() : now.getSeconds());
-        console.log('Y + M + D + h + m + s --- >', Y + M + D + h + m + s)
-        return Y + M + D + h + m + s;
+        var time = now.getTime()
+
+        return Y + M + D + h + m + s + time;
     },
 
     init: function (resUrl) {
-        // 判断图片url是http或https
-        // var resUrl = 'http://image2.135editor.com/cache/remote/aHR0cHM6Ly9tbWJpei5xbG9nby5jbi9tbWJpel9wbmcvN1FSVHZrSzJxQzU4R3VIdGxHMk9RZnFjWUhBZjFPa3g5cVc2NlNxa3dqMER0MWVEd3lpY29lMGg4MHhZbGNzUFhlQjhKdHhLN2R1UXM4YTU4c0ppYVNPZy8wP3d4X2ZtdD1wbmc='
-        this.qiniuUpload(resUrl)
+        return resUrl.replace('https', 'http')
     }
 }
 
