@@ -20,7 +20,10 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
-app.use('/interface', interfaceRouter)
+app.use('/interface', function (req, res, next) {
+  res.header('Access-Control-Allow-Origin', '*');
+  next()
+}, interfaceRouter)
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
